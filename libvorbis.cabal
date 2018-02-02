@@ -12,7 +12,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Stephen Blackheath
 maintainer:          libvorbis.stephen@blacksapphire.com
--- copyright:           
+-- copyright:
 category:            Codec
 build-type:          Simple
 cabal-version:       >=1.8
@@ -73,10 +73,11 @@ source-repository head
 
 library
   exposed-modules:     Codec.Audio.Vorbis.File
-  -- other-modules:       
+  -- other-modules:
   build-depends:       base >= 4.5.0.0 && < 5.0.0.0,
                        bytestring >= 0.10.0.0,
-                       cpu >= 0.1.1
+                       cpu >= 0.1.1,
+                       process
   include-dirs:        libogg-1.3.1/include, libvorbis-1.3.3/include, libvorbis-1.3.3/lib
   ghc-options:         -Wall
   c-sources:

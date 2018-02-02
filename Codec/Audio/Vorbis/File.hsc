@@ -8,6 +8,7 @@ module Codec.Audio.Vorbis.File (
         -- * Opening file or streams
         openFile,
         openCallbacks,
+        fromBytes,
         withFile,
         withCallbacks,
         File,
@@ -27,6 +28,7 @@ module Codec.Audio.Vorbis.File (
 
 import Control.Applicative
 import Control.Monad
+import Control.Concurrent (forkIO)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as B
@@ -40,6 +42,7 @@ import Prelude hiding (catch, read)
 import System.IO (SeekMode(..), hClose, hSeek, hTell, IOMode(..))
 import qualified System.IO as IO
 import System.Endian
+import System.Process (createPipe)
 
 #include <vorbis/vorbisfile.h>
 #include <stdlib.h>
@@ -168,6 +171,19 @@ openCallbacks readFunc closeFunc mSeekTell = do
             err <- peek p_error
             throwVorbisError err
 
+-- | Make Ogg-Vorbis file from ByteString.
+fromBytes :: B.ByteString -> IO File
+fromBytes bytes = do
+    (hRead, hWrite) <- createPipe
+    forkIO $ do
+        B.hPut hWrite bytes
+        hClose hWrite
+    let readFunc size nmemb = B.hGet hRead (size * nmemb)
+        closeFunc = hClose hRead
+        seekFunc = hSeek hRead
+        tellFunc = hTell hRead
+    openCallbacks readFunc closeFunc (Just (seekFunc, tellFunc))
+
 -- | Close the file once we've finished with it. Must be used with the handles returned
 -- by 'openFile' and 'openCallbacks'.
 close :: File -> IO ()
@@ -237,7 +253,7 @@ read :: File
      -> Endianness   -- ^ How to encode the samples as bytes
      -> WordSize     -- ^ Desired word size
      -> Signedness   -- ^ Whether you want signed or unsigned values
-     -> IO (Maybe (ByteString, Int)) 
+     -> IO (Maybe (ByteString, Int))
 read (File f _ _ _ _) bytes endianness wordsize signedness =
     allocaBytes bytes $ \buf ->
     alloca $ \p_bitstream -> go buf p_bitstream
@@ -263,4 +279,3 @@ read (File f _ _ _ _) bytes endianness wordsize signedness =
     c_signedness = case signedness of
         Unsigned     -> 0
         Signed       -> 1
-
